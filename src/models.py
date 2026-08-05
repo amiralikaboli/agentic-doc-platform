@@ -1,8 +1,7 @@
-import enum
 import uuid
 from typing import List, Dict, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ErrorResponse(BaseModel):
@@ -10,19 +9,18 @@ class ErrorResponse(BaseModel):
     details: Dict[str, Any]
 
 
-class DocumentStatus(str, enum.Enum):
-    UPLOADED = "uploaded"
-    PROCESSING = "processing"
-    READY = "ready"
-    FAILED = "failed"
-
-
 class DocumentOut(BaseModel):
     id: uuid.UUID
     filename: str
     content_type: str
     size: int
-    status: DocumentStatus
+    task_id: str | None = Field(None, exclude=True)
+
+
+class DocumentStatusOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    error_reason: str | None = None
 
 
 class PaginatedDocuments(BaseModel):

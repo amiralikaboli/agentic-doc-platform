@@ -5,7 +5,9 @@ from typing import Dict, Optional
 
 from fastapi import FastAPI, UploadFile, Header, Response
 
-from src.models import ErrorResponse, DocumentStatus, DocumentOut, PaginatedDocuments
+from src.celery_app import celery_app
+from src.models import ErrorResponse, DocumentOut, DocumentStatusOut, PaginatedDocuments
+from src.tasks import dummy_task
 
 app = FastAPI()
 
@@ -51,10 +53,12 @@ def create_document(
         id=doc_id,
         filename=file.filename,
         content_type=file.content_type,
-        size=os.path.getsize(dest_path),
-        status=DocumentStatus.UPLOADED,
+        size=os.path.getsize(dest_path)
     )
     id2document[doc_id] = document
+
+    task = dummy_task.delay(str(doc_id))
+    document.task_id = task.id
 
     if idempotency_key:
         idempotency_store[idempotency_key] = doc_id
@@ -68,6 +72,21 @@ def get_document(id: uuid.UUID) -> DocumentOut:
     if id not in id2document:
         raise APIError(status_code=404, message="Document not found")
     return id2document[id]
+
+
+@app.get("/v1/documents/{id}/status", response_model=DocumentStatusOut, responses={404: {"model": ErrorResponse}})
+def get_document_status(id: uuid.UUID) -> DocumentStatusOut:
+    if id not in id2document:
+        raise APIError(status_code=404, message="Document not found")
+
+    document = id2document[id]
+    task = celery_app.AsyncResult(document.task_id)
+
+    return DocumentStatusOut(
+        id=document.id,
+        status=task.state,
+        error_reason=str(task.result) if task.state == "FAILURE" else None
+    )
 
 
 @app.get("/v1/documents", response_model=PaginatedDocuments, responses={422: {"model": ErrorResponse}})
