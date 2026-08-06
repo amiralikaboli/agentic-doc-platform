@@ -1,3 +1,4 @@
+import enum
 import uuid
 from typing import List, Dict, Any
 
@@ -15,6 +16,27 @@ class DocumentOut(BaseModel):
     content_type: str
     size: int
     task_id: str | None = Field(None, exclude=True)
+
+
+class DocumentStatus(str, enum.Enum):
+    UPLOADED = "uploaded"
+    PROCESSING = "processing"
+    DONE = "done"
+    FAILED = "failed"
+    UNKNOWN = "unknown"
+
+    @staticmethod
+    def map_task_state(task_state, task_result):
+        match task_state:
+            case "PENDING":
+                return DocumentStatus.UPLOADED, None
+            case "STARTED":
+                return DocumentStatus.PROCESSING, None
+            case "SUCCESS":
+                return DocumentStatus.DONE, None
+            case "FAILURE":
+                return DocumentStatus.FAILED, str(task_result)
+        return DocumentStatus.UNKNOWN, None
 
 
 class DocumentStatusOut(BaseModel):

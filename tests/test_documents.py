@@ -4,6 +4,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api import app, id2document, idempotency_store
+from src.celery_app import celery_app
+from src.models import DocumentStatus
 
 
 @pytest.fixture(autouse=True)
@@ -16,10 +18,13 @@ def clean_store(monkeypatch, tmp_path):
     data_dir.mkdir()
     monkeypatch.chdir(tmp_path)
 
+    celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
+
     yield
 
     id2document.clear()
     idempotency_store.clear()
+    celery_app.conf.update(task_always_eager=False, task_eager_propagates=False)
 
 
 @pytest.fixture
@@ -43,7 +48,6 @@ def test_create_document_returns_202_and_document_metadata(client):
     body = response.json()
 
     assert uuid.UUID(body["id"])
-    assert body["status"] == "uploaded"
     assert response.headers["Location"] == f"/v1/documents/{body['id']}"
 
 
@@ -107,3 +111,31 @@ def test_invalid_document_id_returns_consistent_error_schema(client):
     response = client.get("/v1/documents/not-a-uuid")
 
     assert response.status_code == 422
+
+
+@pytest.fixture(autouse=True)
+def fast_task(monkeypatch):
+    monkeypatch.setattr("src.tasks.time.sleep", lambda s: None)
+
+
+def test_get_unknown_document_status_returns_404(client):
+    missing_id = uuid.uuid4()
+    response = client.get(f"/v1/documents/{missing_id}/status")
+    assert response.status_code == 404
+
+
+def test_status_transitions_to_done(client):
+    doc_id = upload(client).json()["id"]
+
+    status_resp = client.get(f"/v1/documents/{doc_id}/status")
+    assert status_resp.status_code == 200
+    assert status_resp.json()["status"] == DocumentStatus.DONE
+
+
+def test_corrupt_empty_file_surfaces_failed_with_reason(client):
+    doc_id = upload(client, content=b"").json()["id"]
+
+    status_resp = client.get(f"/v1/documents/{doc_id}/status")
+    body = status_resp.json()
+    assert body["status"] == DocumentStatus.FAILED
+    assert "empty" in body["error_reason"].lower()

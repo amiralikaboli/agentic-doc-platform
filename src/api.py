@@ -6,7 +6,7 @@ from typing import Dict, Optional
 from fastapi import FastAPI, UploadFile, Header, Response
 
 from src.celery_app import celery_app
-from src.models import ErrorResponse, DocumentOut, DocumentStatusOut, PaginatedDocuments
+from src.models import ErrorResponse, DocumentOut, DocumentStatusOut, PaginatedDocuments, DocumentStatus
 from src.tasks import dummy_task
 
 app = FastAPI()
@@ -82,10 +82,12 @@ def get_document_status(id: uuid.UUID) -> DocumentStatusOut:
     document = id2document[id]
     task = celery_app.AsyncResult(document.task_id)
 
+    status, error_reason = DocumentStatus.map_task_state(task.state, task.result)
+
     return DocumentStatusOut(
         id=document.id,
-        status=task.state,
-        error_reason=str(task.result) if task.state == "FAILURE" else None
+        status=status,
+        error_reason=error_reason
     )
 
 
