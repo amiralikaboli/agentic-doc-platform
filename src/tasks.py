@@ -1,13 +1,35 @@
-import time
-
+from src.db import SessionLocal, ChunkModel
+from src.embedding import embedder, chunker
 from src.celery_app import celery_app
 
 
 @celery_app.task
-def dummy_task(doc_id: str):
+def process_document_task(doc_id: str):
     dest_path = f"data/{doc_id}"
-    with open(dest_path, "rb") as f:
+    with open(dest_path, "r", encoding="utf-8") as f:
         content = f.read()
-    if len(content) == 0:
-        raise ValueError("File is empty or corrupt")
-    time.sleep(5)
+
+    chunks = chunker.split_text(content)
+    if not chunks:
+        raise ValueError(f"No text chunks could be extracted from document {doc_id}")
+    chunk_texts = [chunk.page_content for chunk in chunks]
+
+    chunk_embeds = embedder.embed_documents(chunk_texts)
+
+    db = SessionLocal()
+    try:
+        for idx, (text, embed) in enumerate(zip(chunk_texts, chunk_embeds)):
+            db.add(
+                ChunkModel(
+                    document_id=doc_id,
+                    content=text,
+                    chunk_index=idx,
+                    embedding=embed
+                )
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
+    finally:
+        db.close()

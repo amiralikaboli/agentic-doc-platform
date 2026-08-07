@@ -3,7 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.api import app, APIError
+from src.api.documents import app, APIError
 
 
 @app.exception_handler(APIError)

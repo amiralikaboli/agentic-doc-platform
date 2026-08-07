@@ -1,10 +1,76 @@
 services:
+  # 1. PostgreSQL Database with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres_vector
+    restart: always
+    environment:
+      POSTGRES_DB: app_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Broker & Backend for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: redis_broker
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. FastAPI Web Application
   api:
     build: .
+    container_name: fastapi_app
     ports:
       - "8000:8000"
     volumes:
-      - ./src:/src/app
+      - .:/app                     # Mount full repo so src/ and data/ are accessible
+      - document_data:/app/data    # Shared storage volume for uploaded PDFs/docs
     environment:
       - PYTHONUNBUFFERED=1
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
+    command: uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 4. Celery Worker for Chunking & Embedding Execution
+  celery_worker:
+    build: .
+    container_name: celery_worker
+    restart: always
+    volumes:
+      - .:/app                     # Mount code changes in real-time
+      - document_data:/app/data    # Must share the same file storage as API to access uploads
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
+    # Run Celery using your module definition
+    command: celery -A src.celery_app.celery_app worker --loglevel=info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  document_data:

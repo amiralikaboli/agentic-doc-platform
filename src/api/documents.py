@@ -1,35 +1,17 @@
 import os
 import shutil
 import uuid
-from typing import Dict, Optional
+from typing import Dict
 
-from fastapi import FastAPI, UploadFile, Header, Response
+from fastapi import UploadFile, Header, Response
 
+from src.api import app, APIError
 from src.celery_app import celery_app
 from src.models import ErrorResponse, DocumentOut, DocumentStatusOut, PaginatedDocuments, DocumentStatus
-from src.tasks import dummy_task
-
-app = FastAPI()
+from src.tasks import process_document_task
 
 id2document: Dict[uuid.UUID, DocumentOut] = {}
 idempotency_store: Dict[str, uuid.UUID] = {}
-
-
-class APIError(Exception):
-    def __init__(self, status_code: int, message: str, details: Optional[Dict] = None):
-        self.status_code = status_code
-        self.message = message
-        self.details = details if details else {}
-
-
-@app.get("/")
-def root():
-    return "Welcome!"
-
-
-@app.get("/health")
-def health() -> Dict[str, str]:
-    return {"status": "ok"}
 
 
 @app.post("/v1/documents", status_code=202, response_model=DocumentOut, responses={422: {"model": ErrorResponse}})
@@ -57,7 +39,7 @@ def create_document(
     )
     id2document[doc_id] = document
 
-    task = dummy_task.delay(str(doc_id))
+    task = process_document_task.delay(str(doc_id))
     document.task_id = task.id
 
     if idempotency_key:

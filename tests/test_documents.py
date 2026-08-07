@@ -3,7 +3,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from src.api import app, id2document, idempotency_store
+from src.api.documents import app, id2document, idempotency_store
 from src.celery_app import celery_app
 from src.models import DocumentStatus
 
