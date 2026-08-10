@@ -12,13 +12,12 @@ def process_document_task(doc_id: str):
     chunks = chunker.split_text(content)
     if not chunks:
         raise ValueError(f"No text chunks could be extracted from document {doc_id}")
-    chunk_texts = [chunk.page_content for chunk in chunks]
 
-    chunk_embeds = embedder.embed_documents(chunk_texts)
+    chunk_embeds = embedder.embed_documents(chunks)
 
     db = SessionLocal()
     try:
-        for idx, (text, embed) in enumerate(zip(chunk_texts, chunk_embeds)):
+        for idx, (text, embed) in enumerate(zip(chunks, chunk_embeds)):
             db.add(
                 ChunkModel(
                     document_id=doc_id,

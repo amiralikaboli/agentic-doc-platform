@@ -2,7 +2,14 @@ from typing import Dict, Optional
 
 from fastapi import FastAPI
 
+from src.db import init_db
+
 app = FastAPI()
+
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 
 class APIError(Exception):
@@ -10,6 +17,7 @@ class APIError(Exception):
         self.status_code = status_code
         self.message = message
         self.details = details if details else {}
+
 
 @app.get("/")
 def root():
@@ -19,3 +27,6 @@ def root():
 @app.get("/health")
 def health() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+from src.api import documents, query
