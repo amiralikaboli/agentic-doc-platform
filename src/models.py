@@ -4,6 +4,8 @@ from typing import List, Dict, Any
 
 from pydantic import BaseModel, Field
 
+from src.db import ChunkModel
+
 
 class ErrorResponse(BaseModel):
     message: str
@@ -63,7 +65,18 @@ class ChunkResult(BaseModel):
     document_id: uuid.UUID
     content: str
     chunk_index: int
-    distance: float
+    score: float
+
+    @classmethod
+    def from_chunk_model(cls, chunk: ChunkModel) -> "ChunkResult":
+        return cls(
+            id=chunk.id,
+            document_id=chunk.document_id,
+            content=chunk.content,
+            chunk_index=chunk.chunk_index,
+            score=0.0 # will be populated by reranker
+        )
+
 
 class QueryResponse(BaseModel):
     query: str

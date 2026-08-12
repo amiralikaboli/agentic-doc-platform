@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+ENV HF_HOME=/app/.cache/huggingface
+ENV PYTHONUNBUFFERED=1
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \

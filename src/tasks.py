@@ -1,6 +1,6 @@
+from src.celery_app import celery_app
 from src.db import SessionLocal, ChunkModel
 from src.embedding import embedder, chunker
-from src.celery_app import celery_app
 
 
 @celery_app.task

@@ -9,7 +9,11 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup_event():
+    import src.embedding
+    from sentence_transformers import CrossEncoder
+
     init_db()
+    src.embedding.reranker = CrossEncoder('BAAI/bge-reranker-base')  # to load model only in app process
 
 
 class APIError(Exception):

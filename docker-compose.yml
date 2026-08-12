@@ -38,8 +38,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app                     # Mount full repo so src/ and data/ are accessible
-      - document_data:/app/data    # Shared storage volume for uploaded PDFs/docs
+      - .:/app
+      - document_data:/app/data
+      - ./hf_cache:/app/.cache/huggingface
     environment:
       - PYTHONUNBUFFERED=1
       - REDIS_URL=redis://redis:6379/0
@@ -57,13 +58,13 @@ services:
     container_name: celery_worker
     restart: always
     volumes:
-      - .:/app                     # Mount code changes in real-time
-      - document_data:/app/data    # Must share the same file storage as API to access uploads
+      - .:/app
+      - document_data:/app/data
+      - ./hf_cache:/app/.cache/huggingface
     environment:
       - PYTHONUNBUFFERED=1
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
-    # Run Celery using your module definition
     command: celery -A src.celery_app.celery_app worker --loglevel=info
     depends_on:
       postgres:
