@@ -1,6 +1,6 @@
+import src.embedding  # access embedder/chunker as module attributes — set once at worker startup
 from src.celery_app import celery_app
 from src.db import SessionLocal, ChunkModel
-from src.embedding import embedder, chunker
 
 
 @celery_app.task
@@ -9,11 +9,11 @@ def process_document_task(doc_id: str):
     with open(dest_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    chunks = chunker.split_text(content)
+    chunks = src.embedding.chunker.split_text(content)
     if not chunks:
         raise ValueError(f"No text chunks could be extracted from document {doc_id}")
 
-    chunk_embeds = embedder.embed_documents(chunks)
+    chunk_embeds = src.embedding.embedder.embed_documents(chunks)
 
     db = SessionLocal()
     try:

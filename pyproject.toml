@@ -16,6 +16,9 @@ dependencies = [
     "langchain-huggingface>=0.0",
     "sentence-transformers>=5.0",
     "python-multipart>=0.0",
+    "grpcio>=1.60",
+    "grpcio-tools>=1.60",
+    "protobuf>=5.0",
 ]
 
 [project.optional-dependencies]

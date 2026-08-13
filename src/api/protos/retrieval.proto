@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package retrieval.v1;
+
+service Retrieval {
+    rpc Search (SearchRequest) returns (SearchResponse);
+}
+
+message SearchRequest {
+    string query = 1;
+    int32 top_k = 2;
+}
+
+message SearchResponse {
+    repeated RetrievedChunk results = 1;
+    float search_time_ms = 2;
+}
+
+message RetrievedChunk {
+    string id = 1;
+    string document_id = 2;
+    string content = 3;
+    int32 chunk_index = 4;
+    float score = 5;
+}
+

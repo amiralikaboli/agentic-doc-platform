@@ -1,10 +1,9 @@
 import os
 import uuid
-from typing import List, Tuple
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import create_engine, Column, UUID, Text, text, Integer
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy import create_engine, Column, UUID, Text, text, Integer, ForeignKey
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgrespassword@postgres:5432/app_db")
 
@@ -13,11 +12,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
+class DocumentModel(Base):
+    __tablename__ = "documents"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    filename = Column(Text, nullable=False)
+    content_type = Column(Text, nullable=False)
+    size = Column(Integer, nullable=False)
+    task_id = Column(Text, nullable=True)
+    idempotency_key = Column(Text, nullable=True, unique=True)
+
+
 class ChunkModel(Base):
     __tablename__ = "document_chunks"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    document_id = Column(UUID(as_uuid=True), nullable=False)
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
     content = Column(Text, nullable=False)
     chunk_index = Column(Integer, nullable=False)
     embedding = Column(Vector(384))
@@ -35,10 +45,3 @@ def init_db():
             "CREATE INDEX IF NOT EXISTS idx_chunks_hnsw ON document_chunks USING hnsw (embedding vector_cosine_ops);"
         ))
         conn.commit()
-
-
-def search_similar_chunks(db: Session, query_vector: List[float], top_k: int = 3) -> List[Tuple[ChunkModel, float]]:
-    dist_col = ChunkModel.embedding.cosine_distance(query_vector).label("distance")
-    query = db.query(ChunkModel, dist_col)
-    results = query.order_by(dist_col).limit(top_k).all()
-    return results

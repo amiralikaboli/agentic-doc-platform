@@ -1,37 +1,33 @@
-import time
+import grpc
 
-from fastapi import Depends
-
-from src.api import app
-from src.db import search_similar_chunks, SessionLocal
-from src.embedding import embedder, rerank
-from src.models import QueryRequest, ChunkResult, QueryResponse
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from src.api import app, APIError
+from src.api.protos import retrieval_pb2
+from src.models import QueryRequest, QueryResponse, ChunkResult
 
 
 @app.post("/v1/query", response_model=QueryResponse)
-def query(paylod: QueryRequest, db=Depends(get_db)) -> QueryResponse:
-    start_time = time.perf_counter()
-
-    query_vector = embedder.embed_query(paylod.query)
-    chunk_results = [
-        ChunkResult.from_chunk_model(chunk)
-        for chunk, _ in search_similar_chunks(db=db, query_vector=query_vector, top_k=2 * paylod.top_k)
-    ]
-
-    ranked_chunks = rerank(query=paylod.query, candidates=chunk_results, top_k=paylod.top_k)
-
-    elapsed_ms = (time.perf_counter() - start_time) * 1000
+def query(payload: QueryRequest) -> QueryResponse:
+    try:
+        resp = app.state.grpc_stub.Search(
+            retrieval_pb2.SearchRequest(query=payload.query, top_k=payload.top_k),
+            timeout=5.0
+        )
+    except grpc.RpcError as e:
+        code = e.code()
+        if code == grpc.StatusCode.DEADLINE_EXCEEDED:
+            raise APIError(504, "Retrieval service timed out")
+        raise APIError(502, "Retrieval service unavailable", {"grpc_code": str(code)})
 
     return QueryResponse(
-        query=paylod.query,
-        results=ranked_chunks,
-        latency_ms=round(elapsed_ms, 2)
+        results=[
+            ChunkResult(
+                id=retrieved_chunk.id,
+                document_id=retrieved_chunk.document_id,
+                content=retrieved_chunk.content,
+                chunk_index=retrieved_chunk.chunk_index,
+                score=retrieved_chunk.score
+            )
+            for retrieved_chunk in resp.results
+        ],
+        search_time_ms=resp.search_time_ms
     )

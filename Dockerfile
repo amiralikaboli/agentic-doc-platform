@@ -19,5 +19,8 @@ COPY pyproject.toml .
 RUN pip install --no-cache-dir .
 
 COPY src ./src
+COPY gen_proto.sh .
+
+RUN ./gen_proto.sh ./src/api/protos/retrieval.proto
 
 CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
