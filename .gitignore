@@ -5,3 +5,4 @@ datasets
 myproject.egg-info
 hf_cache
 src/api/protos/*pb2*.py
+src/generated

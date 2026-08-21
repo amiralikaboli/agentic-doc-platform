@@ -4,16 +4,16 @@ services:
     image: pgvector/pgvector:pg16
     container_name: postgres_vector
     restart: always
+    env_file: .env
     environment:
-      POSTGRES_DB: app_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d app_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rag_db"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -31,44 +31,41 @@ services:
       timeout: 5s
       retries: 5
 
-  # 3. gRPC Retrieval Service
+  # 3. gRPC Retrieval Service — cold-start initializes models
   retrieval:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.retrieval
     container_name: grpc_retrieval
     ports:
-      - "50051:50051"
+      - "${GRPC_PORT}:50051"
     volumes:
       - .:/app
       - ./hf_cache:/app/.cache/huggingface
-    environment:
-      - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
-    command: python -m src.api.protos.retrieval_server
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "python", "-c", "import grpc,sys; ch=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=2)" ]
-      interval: 5s
+      test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('0.0.0.0:50051'); grpc.channel_ready_future(ch).result(timeout=2)"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
-  # 4. FastAPI Web Application
+  # 4. FastAPI Public API
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.api
     container_name: fastapi_app
     ports:
-      - "8000:8000"
+      - "${API_PORT}:8000"
     volumes:
       - .:/app
       - document_data:/app/data
       - ./hf_cache:/app/.cache/huggingface
-    environment:
-      - PYTHONUNBUFFERED=1
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
-      - GRPC_RETRIEVAL_URL=retrieval:50051
-    command: uvicorn src.api:app --host 0.0.0.0 --port 8000 --reload
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,20 +74,18 @@ services:
       retrieval:
         condition: service_healthy
 
-  # 5. Celery Worker for Chunking & Embedding Execution
+  # 5. Celery Worker — cold-start initializes models for tasks
   celery_worker:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
     container_name: celery_worker
     restart: always
     volumes:
       - .:/app
       - document_data:/app/data
       - ./hf_cache:/app/.cache/huggingface
-    environment:
-      - PYTHONUNBUFFERED=1
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/app_db
-    command: celery -A src.celery_app.celery_app worker --loglevel=info
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy

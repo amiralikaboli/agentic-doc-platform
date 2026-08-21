@@ -1,0 +1,60 @@
+"""Query/search routes."""
+import logging
+
+import grpc
+from fastapi import APIRouter
+from starlette.concurrency import run_in_threadpool
+
+from src.apps.public_api.grpc_client import RetrievalClient
+from src.apps.public_api.schemas.query import QueryRequest, QueryResponse, ChunkResult
+from src.core.errors import ExternalServiceError, ValidationError
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["Query"])
+
+
+@router.post("/query", response_model=QueryResponse)
+async def query(payload: QueryRequest) -> QueryResponse:
+    """Execute a vector search query against ingested documents."""
+    if not payload.query or not payload.query.strip():
+        raise ValidationError("Query cannot be empty")
+
+    if payload.top_k < 1 or payload.top_k > 100:
+        raise ValidationError("top_k must be between 1 and 100", {"top_k": payload.top_k})
+
+    client = RetrievalClient()
+    try:
+        resp = await run_in_threadpool(client.search, payload.query, payload.top_k)
+    except grpc.RpcError as e:
+        code = e.code()
+        if code == grpc.StatusCode.DEADLINE_EXCEEDED:
+            raise ExternalServiceError(
+                "Retrieval Service",
+                "Request timed out",
+                {"grpc_code": str(code)},
+            )
+        logger.error(f"gRPC error: {code} - {e.details()}")
+        raise ExternalServiceError(
+            "Retrieval Service",
+            "Service unavailable",
+            {"grpc_code": str(code)},
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error querying retrieval service: {e}")
+        raise ExternalServiceError("Retrieval Service", str(e))
+    finally:
+        client.close()
+
+    return QueryResponse(
+        results=[
+            ChunkResult(
+                id=retrieved_chunk.id,
+                document_id=retrieved_chunk.document_id,
+                content=retrieved_chunk.content,
+                chunk_index=retrieved_chunk.chunk_index,
+                score=retrieved_chunk.score,
+            )
+            for retrieved_chunk in resp.results
+        ],
+        search_time_ms=resp.search_time_ms,
+    )
