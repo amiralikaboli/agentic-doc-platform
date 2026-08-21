@@ -1,3 +1,5 @@
+name: agentic-doc-platform
+
 services:
   # 1. PostgreSQL Database with pgvector extension
   postgres:
@@ -11,12 +13,26 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d rag_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # 1b. Database initializer (creates DB, extension, and tables)
+  postgres-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: init
+    container_name: postgres_init
+    env_file: .env
+    command: python scripts/init-db.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
 
   # 2. Redis Broker & Backend for Celery
   redis:
@@ -24,7 +40,7 @@ services:
     container_name: redis_broker
     restart: always
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -35,17 +51,18 @@ services:
   retrieval:
     build:
       context: .
-      dockerfile: Dockerfile.retrieval
+      dockerfile: Dockerfile
+      args:
+        SERVICE: retrieval
     container_name: grpc_retrieval
     ports:
       - "${GRPC_PORT}:50051"
     volumes:
-      - .:/app
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('0.0.0.0:50051'); grpc.channel_ready_future(ch).result(timeout=2)"]
       interval: 10s
@@ -57,18 +74,19 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
     container_name: fastapi_app
     ports:
       - "${API_PORT}:8000"
     volumes:
-      - .:/app
       - document_data:/app/data
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       retrieval:
@@ -78,17 +96,18 @@ services:
   celery_worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile
+      args:
+        SERVICE: worker
     container_name: celery_worker
     restart: always
     volumes:
-      - .:/app
       - document_data:/app/data
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 

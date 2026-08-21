@@ -1,4 +1,3 @@
-"""Query/search routes."""
 import logging
 
 import grpc
@@ -15,7 +14,6 @@ router = APIRouter(tags=["Query"])
 
 @router.post("/query", response_model=QueryResponse)
 async def query(payload: QueryRequest) -> QueryResponse:
-    """Execute a vector search query against ingested documents."""
     if not payload.query or not payload.query.strip():
         raise ValidationError("Query cannot be empty")
 
@@ -55,6 +53,5 @@ async def query(payload: QueryRequest) -> QueryResponse:
                 score=retrieved_chunk.score,
             )
             for retrieved_chunk in resp.results
-        ],
-        search_time_ms=resp.search_time_ms,
+        ]
     )

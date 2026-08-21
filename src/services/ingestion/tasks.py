@@ -1,12 +1,12 @@
 """Document ingestion tasks."""
 import logging
 
-from src.services.ingestion.embedding import EmbeddingService
-from src.services.ingestion.chunking import ChunkingService
 from src.apps.worker.celery_app import celery_app
-from src.core.db import SessionLocal
-from src.db.models import Chunk
 from src.core.config import settings
+from src.core.db import SessionLocal
+from src.db.models import Chunk, Document
+from src.services.ingestion.chunking import ChunkingService
+from src.services.ingestion.embedding import EmbeddingService
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,16 @@ def process_document_task(self, doc_id: str):
         logger.info(f"Created {len(chunks)} chunks for {doc_id}")
 
         # Embed chunks
-        chunk_embeds = embedder.embed_batch(chunks)
+        chunk_embeds = embedder.embed(chunks)
         logger.debug(f"Embedded {len(chunk_embeds)} chunks")
 
         # Store chunks in database
         db = SessionLocal()
+
+        doc_record = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc_record:
+            raise ValueError(f"Document {doc_id} not found")
+
         try:
             for idx, (text, embed) in enumerate(zip(chunks, chunk_embeds)):
                 db.add(
@@ -58,6 +63,7 @@ def process_document_task(self, doc_id: str):
             logger.info(f"Stored {len(chunks)} chunks for document {doc_id}")
         except Exception as e:
             db.rollback()
+            db.delete(doc_record)
             logger.error(f"Failed to store chunks: {e}")
             raise
         finally:

@@ -3,26 +3,41 @@ name = "myproject"
 version = "0.1.0"
 description = "Project stub"
 requires-python = ">=3.12"
+# Core: shared by all services
 dependencies = [
-    "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
-    "celery>=5.3",
-    "redis>=6.0",
     "psycopg2-binary>=2.9",
     "sqlalchemy>=2.0",
     "asyncpg>=0.27",
     "pgvector>=0.1",
-    "langchain>=0.1",
-    "langchain-experimental>=0.0",
-    "langchain-huggingface>=0.0",
-    "sentence-transformers>=5.0",
-    "python-multipart>=0.0",
     "grpcio>=1.60",
-    "grpcio-tools>=1.60",
     "protobuf>=5.0",
+    "pydantic-settings>=2.0",
 ]
 
 [project.optional-dependencies]
+init = []
+api = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0",
+    "celery>=5.3",
+    "redis>=6.0",
+]
+# Retrieval service: embedding + reranking
+retrieval = [
+    "sentence-transformers>=5.0",
+]
+# Worker service: Celery tasks + semantic chunking
+worker = [
+    "celery>=5.3",
+    "redis>=6.0",
+    "numpy>=1.24",
+    "sentence-transformers>=5.0",
+]
+# Build: proto compilation
+build = [
+    "grpcio-tools>=1.60",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.21.0",

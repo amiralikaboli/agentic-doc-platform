@@ -19,4 +19,3 @@ class ChunkResult(BaseModel):
 
 class QueryResponse(BaseModel):
     results: List[ChunkResult]
-    search_time_ms: float

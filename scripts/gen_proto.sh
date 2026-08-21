@@ -37,7 +37,7 @@ generate_proto() {
     echo "Generating pb2 files for $proto_file ..."
     echo "  Output: $output_dir"
 
-    python -m grpc_tools.protoc \
+    python3 -m grpc_tools.protoc \
         -I "$proto_dir" \
         --python_out="$output_dir" \
         --grpc_python_out="$output_dir" \
@@ -45,8 +45,17 @@ generate_proto() {
 
     grpc_file="$output_dir/${proto_name}_pb2_grpc.py"
     
-    echo "Fixing imports in ${proto_name}_pb2_grpc.py ..."
-    perl -pi -e "s|^import (${proto_name}_pb2) as |from . import \$1 as |" "$grpc_file"
+    if [[ -f "$grpc_file" ]]; then
+        echo "Fixing imports in ${proto_name}_pb2_grpc.py ..."
+        # Use sed for portability; handle both Linux and macOS
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s|^import ${proto_name}_pb2 as |from . import ${proto_name}_pb2 as |" "$grpc_file" || true
+#            sed -i '' "s|^from ${proto_name}|from . from ${proto_name}|g" "$grpc_file" || true
+        else
+            sed -i "s|^import ${proto_name}_pb2 as |from . import ${proto_name}_pb2 as |" "$grpc_file" || true
+#            sed -i "s|^from ${proto_name}|from . from ${proto_name}|g" "$grpc_file" || true
+        fi
+    fi
 
     echo "✓ Generated: $proto_file -> $output_dir"
 }
@@ -67,9 +76,11 @@ else
 
     proto_count=0
     while IFS= read -r proto_file; do
-        generate_proto "$proto_file"
-        ((proto_count++))
-    done < <(find "$PROTO_ROOT" -name "*.proto" -type f)
+        if [[ -f "$proto_file" ]]; then
+            generate_proto "$proto_file"
+            ((proto_count++))
+        fi
+    done < <(find "$PROTO_ROOT" -name "*.proto" -type f) || true
 
     if [[ $proto_count -eq 0 ]]; then
         echo "No .proto files found in $PROTO_ROOT"

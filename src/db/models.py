@@ -15,8 +15,6 @@ class Document(Base):
     size = Column(Integer, nullable=True)
     idempotency_key = Column(String, nullable=True, unique=True)
     task_id = Column(String, nullable=True)
-    status = Column(String, nullable=False, default="uploaded")
-    error_reason = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")

@@ -1,8 +1,7 @@
-"""Document management routes."""
+import logging
 import os
 import shutil
 import uuid
-import logging
 
 from fastapi import UploadFile, Header, Response, APIRouter
 from fastapi.params import Depends
@@ -17,11 +16,11 @@ from src.apps.public_api.schemas.documents import (
     PaginatedDocuments,
     DocumentStatus,
 )
-from src.apps.worker.celery_app import celery_app
+from src.apps.worker.queue import get_queue
+from src.core.config import settings
 from src.core.db import get_db
 from src.core.errors import ResourceNotFound, ValidationError, InternalServerError
 from src.db.models import Document, Chunk
-from src.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents"])
@@ -29,10 +28,10 @@ router = APIRouter(tags=["Documents"])
 
 @router.post("/documents", status_code=202, response_model=DocumentOut, responses={422: {"model": ErrorResponse}})
 async def create_document(
-    response: Response,
-    file: UploadFile,
-    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
-    db: AsyncSession = Depends(get_db),
+        response: Response,
+        file: UploadFile,
+        idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+        db: AsyncSession = Depends(get_db),
 ) -> DocumentOut:
     try:
         # Check idempotency
@@ -45,8 +44,8 @@ async def create_document(
                 return DocumentOut.model_validate(existing, from_attributes=True)
 
         # Generate document ID
-        doc_id = uuid.uuid4()
-        dest_path = os.path.join(settings.DOCUMENT_STORAGE_PATH, str(doc_id))
+        doc_id = str(uuid.uuid4())
+        dest_path = os.path.join(settings.DOCUMENT_STORAGE_PATH, doc_id)
 
         # Ensure storage directory exists
         os.makedirs(settings.DOCUMENT_STORAGE_PATH, exist_ok=True)
@@ -78,21 +77,14 @@ async def create_document(
             await db.rollback()
             if os.path.exists(dest_path):
                 os.remove(dest_path)
-            # Try to get existing by idempotency key
-            if idempotency_key:
-                stmt = select(Document).where(Document.idempotency_key == idempotency_key)
-                result = await db.execute(stmt)
-                existing = result.scalars().first()
-                if existing:
-                    response.headers["Location"] = f"/v1/documents/{existing.id}"
-                    return DocumentOut.model_validate(existing, from_attributes=True)
             raise InternalServerError("Failed to create document record")
 
-        # Enqueue async processing task (lazy task reference to avoid loading ModelManager)
+        # Enqueue async processing task
         try:
-            task = celery_app.send_task(
+            queue = get_queue()
+            task = queue.send_task(
                 "src.services.ingestion.tasks.process_document_task",
-                args=(str(doc_id),),
+                args=(doc_id,),
             )
             record.task_id = task.id
             await db.commit()
@@ -111,7 +103,7 @@ async def create_document(
 
 
 @router.get("/documents/{id}", response_model=DocumentOut, responses={404: {"model": ErrorResponse}})
-async def get_document(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> DocumentOut:
+async def get_document(id: str, db: AsyncSession = Depends(get_db)) -> DocumentOut:
     """Retrieve document metadata."""
     stmt = select(Document).where(Document.id == id)
     result = await db.execute(stmt)
@@ -124,7 +116,7 @@ async def get_document(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Doc
 
 
 @router.delete("/documents/{id}", status_code=204, responses={404: {"model": ErrorResponse}})
-async def delete_document(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Response:
+async def delete_document(id: str, db: AsyncSession = Depends(get_db)) -> Response:
     """Delete a document and its associated chunks."""
     stmt = select(Document).where(Document.id == id)
     result = await db.execute(stmt)
@@ -136,7 +128,8 @@ async def delete_document(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> 
     try:
         # Revoke processing task if still running
         if record.task_id:
-            celery_app.control.revoke(record.task_id, terminate=True)
+            queue = get_queue()
+            queue.revoke_task(record.task_id, terminate=True)
             logger.info(f"Revoked task {record.task_id}")
 
         # Delete chunks
@@ -164,7 +157,7 @@ async def delete_document(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> 
 
 
 @router.get("/documents/{id}/status", response_model=DocumentStatusOut, responses={404: {"model": ErrorResponse}})
-async def get_document_status(id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> DocumentStatusOut:
+async def get_document_status(id: str, db: AsyncSession = Depends(get_db)) -> DocumentStatusOut:
     """Get the processing status of a document."""
     stmt = select(Document).where(Document.id == id)
     result = await db.execute(stmt)
@@ -173,16 +166,16 @@ async def get_document_status(id: uuid.UUID, db: AsyncSession = Depends(get_db))
     if not record:
         raise ResourceNotFound("Document", str(id))
 
-    task = celery_app.AsyncResult(record.task_id) if record.task_id else None
-    status, error_reason = DocumentStatus.map_task_state(task.state if task else "PENDING", task.result if task else None)
+    queue = get_queue()
+    task = queue.get_task_result(record.task_id)
+    status, error_reason = DocumentStatus.map_task_state(task.state if task else "PENDING",
+                                                         task.result if task else None)
 
     return DocumentStatusOut(id=record.id, status=status, error_reason=error_reason)
 
 
 @router.get("/documents", response_model=PaginatedDocuments, responses={422: {"model": ErrorResponse}})
-async def list_documents(
-    skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)
-) -> PaginatedDocuments:
+async def list_documents(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)) -> PaginatedDocuments:
     """List documents with pagination."""
     if skip < 0 or limit < 1:
         raise ValidationError("Invalid pagination parameters", {"skip": skip, "limit": limit})

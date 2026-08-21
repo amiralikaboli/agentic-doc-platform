@@ -1,27 +1,34 @@
-"""FastAPI public API application."""
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from src.apps.public_api.routes import documents, query
+from src.apps.worker.queue import CeleryQueue
 from src.core.config import settings
 from src.core.errors import DomainException, domain_exception_handler
-
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan management."""
-    logger.info("🚀 API Server starting...")
-    logger.info("✓ API Server ready (no models needed — embedder in retrieval service)")
+    """FastAPI lifespan: initialize queue on startup, cleanup on shutdown."""
+    # Startup
+    logger.info("Starting up public_api...")
+    try:
+        from src.apps.worker.celery_app import celery_app
+        CeleryQueue.init(celery_app)
+        logger.info("✓ CeleryQueue initialized")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize CeleryQueue: {e}")
+        raise
 
-    yield  # App runs here
+    yield
 
     # Shutdown
-    logger.info("🛑 API Server shutting down...")
+    logger.info("Shutting down public_api...")
+    logger.info("✓ Cleanup complete")
 
 
 app = FastAPI(
@@ -41,5 +48,4 @@ app.include_router(query.router, prefix="/v1")
 
 @app.get("/health")
 async def health_check() -> dict:
-    """Health check endpoint."""
     return {"status": "ok", "service": "public_api"}

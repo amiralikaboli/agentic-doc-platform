@@ -1,28 +1,17 @@
-"""Domain-driven exception handling."""
 from typing import Any, Dict, Optional
+
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 
 class DomainException(Exception):
-    """Base exception for domain-level errors."""
-
     def __init__(
-        self,
-        message: str,
-        status_code: int = status.HTTP_400_BAD_REQUEST,
-        error_code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+            self,
+            message: str,
+            status_code: int = status.HTTP_400_BAD_REQUEST,
+            error_code: Optional[str] = None,
+            details: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Initialize domain exception.
-
-        Args:
-            message: Human-readable error message.
-            status_code: HTTP status code.
-            error_code: Machine-readable error code (e.g., "DOCUMENT_NOT_FOUND").
-            details: Additional context (e.g., {"document_id": "123"}).
-        """
         super().__init__(message)
         self.message = message
         self.status_code = status_code
@@ -31,8 +20,6 @@ class DomainException(Exception):
 
 
 class ResourceNotFound(DomainException):
-    """Raised when a requested resource does not exist."""
-
     def __init__(self, resource: str, identifier: str, details: Optional[Dict[str, Any]] = None):
         message = f"{resource} not found: {identifier}"
         super().__init__(
@@ -44,8 +31,6 @@ class ResourceNotFound(DomainException):
 
 
 class ValidationError(DomainException):
-    """Raised when input validation fails."""
-
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(
             message=message,
@@ -56,8 +41,6 @@ class ValidationError(DomainException):
 
 
 class ExternalServiceError(DomainException):
-    """Raised when an external service (gRPC, database) fails."""
-
     def __init__(self, service: str, message: str, details: Optional[Dict[str, Any]] = None):
         full_message = f"{service} error: {message}"
         super().__init__(
@@ -69,8 +52,6 @@ class ExternalServiceError(DomainException):
 
 
 class InternalServerError(DomainException):
-    """Raised for unrecoverable server errors."""
-
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(
             message=message,
@@ -81,11 +62,6 @@ class InternalServerError(DomainException):
 
 
 async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:
-    """
-    FastAPI exception handler for DomainException.
-
-    Returns structured error response with code, message, and details.
-    """
     return JSONResponse(
         status_code=exc.status_code,
         content={

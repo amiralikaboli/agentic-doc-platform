@@ -13,7 +13,6 @@ message SearchRequest {
 
 message SearchResponse {
     repeated RetrievedChunk results = 1;
-    float search_time_ms = 2;
 }
 
 message RetrievedChunk {
