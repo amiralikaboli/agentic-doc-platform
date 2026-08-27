@@ -1,11 +1,20 @@
-ARG BASE_IMAGE=python:3.12-slim
-FROM ${BASE_IMAGE} as builder
+ARG ENVIRONMENT=local
+ARG SERVICE=api
+ARG GPU_SERVICE=false
+
+# Select base image: CUDA only for retrieval/worker in GPU environment
+FROM python:3.12-slim AS base-cpu
+FROM nvidia/cuda:13.3.1-runtime-ubuntu24.04 AS base-gpu
+FROM base-$( if [ "$ENVIRONMENT" = "gpu" ] && [ "$GPU_SERVICE" = "true" ]; then echo gpu; else echo cpu; fi ) as builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
+# Install Python and build tools (needed for GPU base image)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3-pip \
     build-essential \
     libpq-dev \
     protobuf-compiler \
@@ -17,11 +26,19 @@ WORKDIR /app
 COPY pyproject.toml .
 RUN pip install ".[build]"
 
-# Define service type (api, retrieval, worker, or init)
-ARG SERVICE=api
+# Install torch based on environment:
+# - local/ci: install CPU version (smaller wheels for dev)
+# - gpu: skip (CUDA already in base image)
+ARG ENVIRONMENT=local
+ARG GPU_SERVICE=false
+RUN if ([ "$SERVICE" = "retrieval" ] || [ "$SERVICE" = "worker" ]) && \
+       ([ "$ENVIRONMENT" = "local" ] || [ "$ENVIRONMENT" = "ci" ]); then \
+      echo "Installing torch CPU for $SERVICE in $ENVIRONMENT environment..."; \
+      pip install torch --index-url https://download.pytorch.org/whl/cpu; \
+    fi
 
-# Install dependencies with extended timeout
-RUN pip install ".[$SERVICE]"
+# Install service-specific dependencies
+RUN pip install -e ".[$SERVICE]"
 
 # Copy proto and scripts, generate gRPC code
 COPY proto ./proto
@@ -35,8 +52,13 @@ COPY src ./src
 RUN mkdir -p /app/data
 
 # Final runtime stage — minimal footprint
-ARG BASE_IMAGE=python:3.12-slim
-FROM ${BASE_IMAGE}
+ARG ENVIRONMENT=local
+ARG SERVICE=api
+ARG GPU_SERVICE=false
+
+FROM python:3.12-slim AS runtime-cpu
+FROM nvidia/cuda:13.3.1-runtime-ubuntu24.04 AS runtime-gpu
+FROM runtime-$( if [ "$ENVIRONMENT" = "gpu" ] && [ "$GPU_SERVICE" = "true" ]; then echo gpu; else echo cpu; fi )
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
@@ -44,8 +66,10 @@ ENV PYTHONUNBUFFERED=1 \
 ARG SERVICE=api
 ENV SERVICE="${SERVICE}"
 
-# Minimal runtime deps only (no build tools)
+# Install Python and minimal runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3-pip \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
