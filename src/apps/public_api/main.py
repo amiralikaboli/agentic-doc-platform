@@ -24,9 +24,21 @@ async def lifespan(app: FastAPI):
         logger.error(f"✗ Failed to initialize CeleryQueue: {e}")
         raise
 
+    client = None
+    try:
+        from src.apps.public_api.grpc_client import get_retrieval_client
+        client = get_retrieval_client()
+        client.init()
+        logger.info("✓ CeleryQueue initialized")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize CeleryQueue: {e}")
+        raise
+
     yield
 
     # Shutdown
+    if client:
+        client.close()
     logger.info("Shutting down public_api...")
     logger.info("✓ Cleanup complete")
 

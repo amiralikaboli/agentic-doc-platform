@@ -1,5 +1,6 @@
 import enum
 import uuid
+from datetime import datetime
 from typing import List, Dict, Any
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,7 @@ class DocumentOut(BaseModel):
     content_type: str
     size: int
     task_id: str | None = Field(None, exclude=True)
+    created_at: datetime
 
 
 class DocumentStatus(str, enum.Enum):

@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # Embedding Model
     EMBEDDING_MODEL_NAME: str = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+    EMBEDDING_MODEL_DIMENSION: int = int(os.getenv("EMBEDDING_MODEL_DIMENSION", "384"))
 
     # Reranker Model
     RERANKER_MODEL_NAME: str = os.getenv("RERANKER_MODEL_NAME", "BAAI/bge-reranker-base")

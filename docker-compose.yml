@@ -26,8 +26,6 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: init
-        ENVIRONMENT: ${ENVIRONMENT:-local}
-        GPU_SERVICE: "false"
     container_name: postgres_init
     env_file: .env
     command: python scripts/init-db.py
@@ -56,8 +54,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: retrieval
-        ENVIRONMENT: ${ENVIRONMENT:-local}
-        GPU_SERVICE: "false"
+        TORCH_VARIANT: cpu
     container_name: grpc_retrieval
     ports:
       - "${GRPC_PORT}:50051"
@@ -81,8 +78,6 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: api
-        ENVIRONMENT: ${ENVIRONMENT:-local}
-        GPU_SERVICE: "false"
     container_name: fastapi_app
     ports:
       - "${API_PORT}:8000"
@@ -105,8 +100,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: worker
-        ENVIRONMENT: ${ENVIRONMENT:-local}
-        GPU_SERVICE: "false"
+        TORCH_VARIANT: cpu
     container_name: celery_worker
     restart: always
     volumes:

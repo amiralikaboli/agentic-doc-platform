@@ -1,27 +1,16 @@
 # docker-compose.gpu.yml
-# Override compose to use pre-built images from GitHub Container Registry
-# Also passes GPU_SERVICE=true for retrieval/worker services
+# Override compose to use pre-built images from GitHub Container Registry.
 # Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --pull always -d
-
-version: '3.9'
 
 services:
   postgres-init:
-    build: ~
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-yourusername/yourrepo}-init:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-init:${IMAGE_TAG:-latest}
 
   retrieval:
-    build:
-      args:
-        GPU_SERVICE: "true"
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-yourusername/yourrepo}-retrieval:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-retrieval:${IMAGE_TAG:-latest}
 
   api:
-    build: ~
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-yourusername/yourrepo}-api:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-api:${IMAGE_TAG:-latest}
 
   celery_worker:
-    build:
-      args:
-        GPU_SERVICE: "true"
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-yourusername/yourrepo}-worker:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-worker:${IMAGE_TAG:-latest}

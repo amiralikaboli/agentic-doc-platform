@@ -4,7 +4,7 @@ import grpc
 from fastapi import APIRouter
 from starlette.concurrency import run_in_threadpool
 
-from src.apps.public_api.grpc_client import RetrievalClient
+from src.apps.public_api.grpc_client import get_retrieval_client
 from src.apps.public_api.schemas.query import QueryRequest, QueryResponse, ChunkResult
 from src.core.errors import ExternalServiceError, ValidationError
 
@@ -20,7 +20,7 @@ async def query(payload: QueryRequest) -> QueryResponse:
     if payload.top_k < 1 or payload.top_k > 100:
         raise ValidationError("top_k must be between 1 and 100", {"top_k": payload.top_k})
 
-    client = RetrievalClient()
+    client = get_retrieval_client()
     try:
         resp = await run_in_threadpool(client.search, payload.query, payload.top_k)
     except grpc.RpcError as e:
@@ -40,8 +40,6 @@ async def query(payload: QueryRequest) -> QueryResponse:
     except Exception as e:
         logger.error(f"Unexpected error querying retrieval service: {e}")
         raise ExternalServiceError("Retrieval Service", str(e))
-    finally:
-        client.close()
 
     return QueryResponse(
         results=[
