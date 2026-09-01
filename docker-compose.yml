@@ -20,13 +20,14 @@ services:
       retries: 5
 
   # 1b. Database initializer (creates DB, extension, and tables)
-  postgres-init:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: init
-    container_name: postgres_init
+  init:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      args:
+#        SERVICE: init
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/init:${IMAGE_TAG:-latest}
+    container_name: init
     env_file: .env
     command: python scripts/init-db.py
     depends_on:
@@ -49,12 +50,13 @@ services:
 
   # 3. gRPC Retrieval Service — cold-start initializes models
   retrieval:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: retrieval
-        TORCH_VARIANT: cpu
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      args:
+#        SERVICE: retrieval
+#        TORCH_VARIANT: cpu
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval-cpu:${IMAGE_TAG:-latest}
     container_name: grpc_retrieval
     ports:
       - "${GRPC_PORT}:50051"
@@ -62,7 +64,7 @@ services:
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres-init:
+      init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import grpc; ch=grpc.insecure_channel('0.0.0.0:50051'); grpc.channel_ready_future(ch).result(timeout=2)"]
@@ -78,6 +80,7 @@ services:
       dockerfile: Dockerfile
       args:
         SERVICE: api
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
     container_name: fastapi_app
     ports:
       - "${API_PORT}:8000"
@@ -86,7 +89,7 @@ services:
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres-init:
+      init:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -94,21 +97,22 @@ services:
         condition: service_healthy
 
   # 5. Celery Worker — cold-start initializes models for tasks
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: worker
-        TORCH_VARIANT: cpu
-    container_name: celery_worker
+  worker:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      args:
+#        SERVICE: worker
+#        TORCH_VARIANT: cpu
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker-cpu:${IMAGE_TAG:-latest}
+    container_name: worker
     restart: always
     volumes:
       - document_data:/app/data
       - ./hf_cache:/app/.cache/huggingface
     env_file: .env
     depends_on:
-      postgres-init:
+      init:
         condition: service_completed_successfully
       redis:
         condition: service_healthy

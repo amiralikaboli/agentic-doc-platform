@@ -3,14 +3,14 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --pull always -d
 
 services:
-  postgres-init:
+  init:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/init:${IMAGE_TAG:-latest}
 
   retrieval:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval-cuda:${IMAGE_TAG:-latest}
 
   api:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
 
-  celery_worker:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker:${IMAGE_TAG:-latest}
+  worker:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker-cuda:${IMAGE_TAG:-latest}

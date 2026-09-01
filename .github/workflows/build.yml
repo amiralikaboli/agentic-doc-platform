@@ -1,15 +1,17 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'Dockerfile'
-      - 'pyproject.toml'
-      - 'src/**'
-      - 'proto/**'
-      - 'scripts/**'
-      - '.github/workflows/build.yml'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - cpu
+          - cuda
+          - both
 
 env:
   REGISTRY: ghcr.io
@@ -29,16 +31,36 @@ jobs:
             torch_variant: none
             base_image: python:3.12-slim
           - service: retrieval
+            torch_variant: cpu
+            base_image: python:3.12-slim
+          - service: retrieval
             torch_variant: cuda
             base_image: nvidia/cuda:13.3.1-runtime-ubuntu24.04
+          - service: worker
+            torch_variant: cpu
+            base_image: python:3.12-slim
           - service: worker
             torch_variant: cuda
             base_image: nvidia/cuda:13.3.1-runtime-ubuntu24.04
 
     steps:
+      - name: Check if job should run
+        id: should_run
+        run: |
+          SHOULD_RUN=true
+          if [ "${{ github.event.inputs.build_type }}" = "cpu" ] && [ "${{ matrix.torch_variant }}" = "cuda" ]; then
+            SHOULD_RUN=false
+          fi
+          if [ "${{ github.event.inputs.build_type }}" = "cuda" ] && [ "${{ matrix.torch_variant }}" = "cpu" ]; then
+            SHOULD_RUN=false
+          fi
+          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+
       - uses: actions/checkout@v4
+        if: steps.should_run.outputs.should_run == 'true'
 
       - name: Generate protobuf files
+        if: steps.should_run.outputs.should_run == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler python3-full python3-pip
@@ -46,17 +68,32 @@ jobs:
           bash scripts/gen_proto.sh
 
       - uses: docker/setup-buildx-action@v3
+        if: steps.should_run.outputs.should_run == 'true'
+
       - uses: docker/login-action@v3
+        if: steps.should_run.outputs.should_run == 'true'
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Compute image name
+        if: steps.should_run.outputs.should_run == 'true'
+        id: image
+        run: |
+          if [ "${{ matrix.torch_variant }}" = "none" ]; then
+            IMAGE_SUFFIX=""
+          else
+            IMAGE_SUFFIX="-${{ matrix.torch_variant }}"
+          fi
+          echo "name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}${IMAGE_SUFFIX}" >> $GITHUB_OUTPUT
+
       - name: Extract metadata
+        if: steps.should_run.outputs.should_run == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
@@ -65,6 +102,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push
+        if: steps.should_run.outputs.should_run == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
