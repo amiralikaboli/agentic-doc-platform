@@ -4,13 +4,13 @@
 
 services:
   postgres-init:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-init:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/init:${IMAGE_TAG:-latest}
 
   retrieval:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-retrieval:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval:${IMAGE_TAG:-latest}
 
   api:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-api:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
 
   celery_worker:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}-worker:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker:${IMAGE_TAG:-latest}
