@@ -8,15 +8,15 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-ARG BASE_IMAGE
-RUN case "$BASE_IMAGE" in \
-      *python*) apt-get update && \
-                apt-get install -y --no-install-recommends build-essential libpq-dev && \
-                rm -rf /var/lib/apt/lists/* ;; \
-      *) apt-get update && \
-         apt-get install -y --no-install-recommends python3.12-full python3-pip build-essential libpq-dev && \
-         rm -rf /var/lib/apt/lists/* ;; \
-    esac
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if ! command -v pip >/dev/null 2>&1; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends python3.12 python3-pip && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 WORKDIR /app
 COPY pyproject.toml .
@@ -25,7 +25,7 @@ ARG SERVICE
 ARG TORCH_VARIANT
 RUN if [ "$TORCH_VARIANT" = "cpu" ]; then pip install torch --index-url https://download.pytorch.org/whl/cpu; fi
 
-RUN pip install -e ".[$SERVICE]"
+RUN pip install --break-system-packages -e ".[$SERVICE]"
 
 COPY src ./src
 RUN mkdir -p /app/data
