@@ -28,6 +28,7 @@ RUN if [ "$TORCH_VARIANT" = "cpu" ]; then pip install torch --index-url https://
 RUN pip install --break-system-packages -e ".[$SERVICE]"
 
 COPY src ./src
+COPY scripts ./scripts
 RUN mkdir -p /app/data
 
 ARG SERVICE
