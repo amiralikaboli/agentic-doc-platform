@@ -29,9 +29,9 @@ async def lifespan(app: FastAPI):
         from src.apps.public_api.grpc_client import get_retrieval_client
         client = get_retrieval_client()
         client.init()
-        logger.info("✓ CeleryQueue initialized")
+        logger.info("✓ gRPC retrieval client initialized")
     except Exception as e:
-        logger.error(f"✗ Failed to initialize CeleryQueue: {e}")
+        logger.error(f"✗ Failed to initialize gRPC retrieval client: {e}")
         raise
 
     yield

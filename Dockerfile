@@ -12,6 +12,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
+# nvidia/cuda runtime images have no Python — install it if missing
 RUN if ! command -v pip >/dev/null 2>&1; then \
         apt-get update && \
         apt-get install -y --no-install-recommends python3.12 python3-pip && \

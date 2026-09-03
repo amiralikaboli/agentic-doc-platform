@@ -5,12 +5,22 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from src.core.config import settings
 
 # Async engine and session maker
-engine = create_async_engine(settings.DB_URL, echo=False, future=True)
+engine = create_async_engine(
+    settings.DB_URL,
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW,
+    echo=False,
+    future=True
+)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Sync session maker using the engine's sync engine when synchronous sessions are required
 sync_db_url = settings.DB_URL.replace("postgresql+asyncpg://", "postgresql://")
-sync_engine = create_engine(sync_db_url)
+sync_engine = create_engine(
+    sync_db_url,
+    pool_size=settings.DB_POOL_SIZE,
+    max_overflow=settings.DB_MAX_OVERFLOW
+)
 SessionLocal = sessionmaker(bind=sync_engine, autoflush=False, expire_on_commit=False)
 
 Base = declarative_base()

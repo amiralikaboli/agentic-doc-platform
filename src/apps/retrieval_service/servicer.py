@@ -39,6 +39,6 @@ class RetrievalServicer(retrieval_pb2_grpc.RetrievalServicer):
             )
         except Exception as e:
             logger.error(f"Search failed: {e}", exc_info=True)
-            context.abort(grpc.StatusCode.INTERNAL, str(e))
+            context.abort(grpc.StatusCode.INTERNAL, "Internal error during search")
         finally:
             db.close()

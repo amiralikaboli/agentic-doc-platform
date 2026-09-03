@@ -6,10 +6,13 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 
 
-class ErrorResponse(BaseModel):
+class ErrorBody(BaseModel):
+    code: str
     message: str
     details: Dict[str, Any]
 
+class ErrorResponse(BaseModel):
+    error: ErrorBody
 
 class DocumentOut(BaseModel):
     id: uuid.UUID

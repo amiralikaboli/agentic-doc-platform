@@ -75,11 +75,11 @@ services:
 
   # 4. FastAPI Public API
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        SERVICE: api
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#      args:
+#        SERVICE: api
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
     container_name: api
     ports:

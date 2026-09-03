@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class QueryRequest(BaseModel):
     query: str = Field()
-    top_k: int = Field(default=3)
+    top_k: int = Field(default=3, ge=1, le=20)
 
 
 class ChunkResult(BaseModel):

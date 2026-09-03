@@ -20,7 +20,7 @@ from src.apps.worker.queue import get_queue
 from src.core.config import settings
 from src.core.db import get_db
 from src.core.errors import ResourceNotFound, ValidationError, InternalServerError
-from src.db.models import Document, Chunk
+from src.db.models import Document
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Documents"])
@@ -132,13 +132,6 @@ async def delete_document(id: str, db: AsyncSession = Depends(get_db)) -> Respon
             queue.revoke_task(record.task_id, terminate=True)
             logger.info(f"Revoked task {record.task_id}")
 
-        # Delete chunks
-        delete_stmt = select(Chunk).where(Chunk.document_id == id)
-        result = await db.execute(delete_stmt)
-        chunks = result.scalars().all()
-        for chunk in chunks:
-            await db.delete(chunk)
-
         await db.delete(record)
         await db.commit()
         logger.info(f"Document {id} deleted from database")
@@ -188,7 +181,7 @@ async def list_documents(skip: int = 0, limit: int = 10, db: AsyncSession = Depe
     total = count_result.scalar()
 
     # Get paginated results
-    stmt = select(Document).order_by(Document.id).offset(skip).limit(limit)
+    stmt = select(Document).order_by(Document.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     rows = result.scalars().all()
 

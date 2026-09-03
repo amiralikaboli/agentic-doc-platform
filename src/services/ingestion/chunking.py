@@ -1,4 +1,3 @@
-"""Text chunking service using ModelManager."""
 import re
 
 import numpy as np
@@ -7,8 +6,6 @@ from src.services.ingestion.embedding import EmbeddingService
 
 
 class ChunkingService:
-    """Chunking service — delegates to global ModelManager."""
-
     def __init__(self):
         self.embedding_service = EmbeddingService()
 
@@ -28,6 +25,7 @@ class ChunkingService:
         threshold = np.percentile(distances, 95.0)
         breakpoints = [i for i, d in enumerate(distances) if d > threshold]
 
+        # TODO: add a cap for number of sentences/tokens in each chunk
         chunks, start = [], 0
         for bp in breakpoints:
             chunks.append(" ".join(sentences[start: bp + 1]))

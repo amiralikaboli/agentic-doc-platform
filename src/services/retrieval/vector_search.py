@@ -13,6 +13,5 @@ def search_candidates(session: Session, query: str, top_k: int = 20) -> list[Chu
 
     # Vector search: retrieve 2x top_k candidates
     dist_col = Chunk.embedding.cosine_distance(query_vector).label("distance")
-    query = session.query(Chunk, dist_col)
-    results = query.order_by(dist_col).limit(top_k).all()
-    return [chunk for chunk, _ in results]
+    stmt = session.query(Chunk, dist_col).order_by(dist_col).limit(top_k)
+    return [chunk for chunk, _ in stmt.all()]

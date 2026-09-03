@@ -17,9 +17,6 @@ async def query(payload: QueryRequest) -> QueryResponse:
     if not payload.query or not payload.query.strip():
         raise ValidationError("Query cannot be empty")
 
-    if payload.top_k < 1 or payload.top_k > 100:
-        raise ValidationError("top_k must be between 1 and 100", {"top_k": payload.top_k})
-
     client = get_retrieval_client()
     try:
         resp = await run_in_threadpool(client.search, payload.query, payload.top_k)
