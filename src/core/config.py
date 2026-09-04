@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     # Reranker Model
     RERANKER_MODEL_NAME: str = "BAAI/bge-reranker-base"
 
+    # LLM Generation (vLLM OpenAI-compatible server)
+    LLM_BACKEND: str = "mock"  # "mock" (no GPU needed) | "vllm"
+    LLM_BASE_URL: str = "http://localhost:8001/v1"
+    LLM_MODEL_NAME: str = "Qwen/Qwen2.5-7B-Instruct"
+    LLM_API_KEY: str = "not-needed"
+    LLM_MAX_TOKENS: int = 512
+    LLM_TEMPERATURE: float = 0.2
+    LLM_REQUEST_TIMEOUT: int = 60
+
     # File Storage
     DOCUMENT_STORAGE_PATH: str = "data"
 

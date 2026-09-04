@@ -7,9 +7,12 @@ from starlette.concurrency import run_in_threadpool
 from src.apps.public_api.grpc_client import get_retrieval_client
 from src.apps.public_api.schemas.query import QueryRequest, QueryResponse, ChunkResult
 from src.core.errors import ExternalServiceError, ValidationError
+from src.services.llm.service import GenerationService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Query"])
+
+generation_service = GenerationService()
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -38,7 +41,17 @@ async def query(payload: QueryRequest) -> QueryResponse:
         logger.error(f"Unexpected error querying retrieval service: {e}")
         raise ExternalServiceError("Retrieval Service", str(e))
 
+    try:
+        chunk_contents = [retrieved_chunk.content for retrieved_chunk in resp.results]
+        answer = await run_in_threadpool(generation_service.generate, payload.query, chunk_contents)
+    except ExternalServiceError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error generating answer: {e}")
+        raise ExternalServiceError("LLM Service", str(e))
+
     return QueryResponse(
+        answer=answer,
         results=[
             ChunkResult(
                 id=retrieved_chunk.id,

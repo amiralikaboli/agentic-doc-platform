@@ -9,8 +9,39 @@ services:
   retrieval:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval-cuda:${IMAGE_TAG:-latest}
 
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm
+    ports:
+      - "${VLLM_PORT}:8000"
+    volumes:
+      - ./hf_cache:/root/.cache/huggingface
+    env_file: .env
+    command: >
+      --model ${LLM_MODEL_NAME}
+      --gpu-memory-utilization ${VLLM_GPU_MEMORY_UTILIZATION:-0.9}
+      --max-model-len ${VLLM_MAX_MODEL_LEN:-4096}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 180s  # model download + load can take a while on first boot
+
   api:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
+    environment:
+      LLM_BACKEND: vllm
+    depends_on:
+      vllm:
+        condition: service_healthy
 
   worker:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker-cuda:${IMAGE_TAG:-latest}
