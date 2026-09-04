@@ -11,7 +11,7 @@ class ChunkingService:
 
     def split_text(self, text: str) -> list[str]:
         sentences = [s for s in re.split(r"(?<=[.?!])\s+", text) if s]
-        if len(sentences) == 1:
+        if len(sentences) <= 1:
             return sentences
 
         embeddings = self.embedding_service.embed(sentences)

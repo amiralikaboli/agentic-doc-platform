@@ -3,8 +3,7 @@ import os
 import shutil
 import uuid
 
-from fastapi import UploadFile, Header, Response, APIRouter
-from fastapi.params import Depends
+from fastapi import UploadFile, Header, Response, APIRouter, Depends
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +33,9 @@ async def create_document(
         db: AsyncSession = Depends(get_db),
 ) -> DocumentOut:
     try:
+        if file.content_type != "text/plain":
+            raise ValidationError("Only text/plain files are allowed", {"content_type": file.content_type})
+
         # Check idempotency
         if idempotency_key:
             stmt = select(Document).where(Document.idempotency_key == idempotency_key)

@@ -14,26 +14,23 @@ class RetrievalClient:
             cls._instance = super().__new__(cls)
         return cls._instance
 
-    @classmethod
-    def init(cls):
-        if cls.channel:
+    def init(self):
+        if self.channel:
             return
-        cls.channel = grpc.insecure_channel(settings.GRPC_SERVER_ADDRESS)
-        cls.stub = retrieval_pb2_grpc.RetrievalStub(cls.channel)
+        self.channel = grpc.insecure_channel(settings.GRPC_SERVER_ADDRESS)
+        self.stub = retrieval_pb2_grpc.RetrievalStub(self.channel)
 
-    @classmethod
-    def search(cls, query: str, top_k: int = 5):
-        if cls.stub is None:
+    def search(self, query: str, top_k: int = 5):
+        if self.stub is None:
             raise RuntimeError("RetrievalClient not initialized. Call init() first.")
         req = retrieval_pb2.SearchRequest(query=query, top_k=top_k)
-        return cls.stub.Search(req, timeout=settings.GRPC_REQUEST_TIMEOUT)
+        return self.stub.Search(req, timeout=settings.GRPC_REQUEST_TIMEOUT)
 
-    @classmethod
-    def close(cls):
-        if cls.channel is not None:
-            cls.channel.close()
-            cls.channel = None
-            cls.stub = None
+    def close(self):
+        if self.channel is not None:
+            self.channel.close()
+            self.channel = None
+            self.stub = None
 
 
 def get_retrieval_client():
