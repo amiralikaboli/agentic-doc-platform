@@ -1,5 +1,5 @@
-"""Document ingestion tasks."""
 import logging
+import os
 
 from src.apps.worker.celery_app import celery_app
 from src.core.config import settings
@@ -69,6 +69,14 @@ def process_document_task(doc_id: str):
             db.delete(doc_record)
             db.commit()
             logger.error(f"Failed to store chunks: {e}")
+
+            if os.path.exists(dest_path):
+                try:
+                    os.remove(dest_path)
+                    logger.info(f"Removed orphaned file for failed document {doc_id}")
+                except OSError as cleanup_err:
+                    logger.error(f"Failed to remove orphaned file {dest_path}: {cleanup_err}")
+
             raise
         finally:
             db.close()

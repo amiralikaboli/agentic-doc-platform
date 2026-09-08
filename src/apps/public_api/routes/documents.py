@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import uuid
 
 from fastapi import UploadFile, Header, Response, APIRouter, Depends
@@ -52,11 +51,24 @@ async def create_document(
         # Ensure storage directory exists
         os.makedirs(settings.DOCUMENT_STORAGE_PATH, exist_ok=True)
 
-        # Save file
+        # Save file, enforcing a max size while streaming so we never buffer
+        # more than one chunk of an oversized upload to disk.
+        max_size = settings.MAX_UPLOAD_SIZE_BYTES
+        file_size = 0
         try:
             with open(dest_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-            file_size = os.path.getsize(dest_path)
+                while chunk := await file.read(1024 * 1024):
+                    file_size += len(chunk)
+                    if file_size > max_size:
+                        raise ValidationError(
+                            f"File exceeds maximum upload size of {max_size} bytes",
+                            {"max_size_bytes": max_size},
+                        )
+                    buffer.write(chunk)
+        except ValidationError:
+            if os.path.exists(dest_path):
+                os.remove(dest_path)
+            raise
         except Exception as e:
             logger.error(f"Failed to save file: {e}")
             if os.path.exists(dest_path):

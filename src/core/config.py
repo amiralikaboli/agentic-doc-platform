@@ -43,10 +43,7 @@ class Settings(BaseSettings):
 
     # File Storage
     DOCUMENT_STORAGE_PATH: str = "data"
-
-    # Model Cache
-    HF_CACHE_DIR: str = "/app/.cache/huggingface"
-    HF_HOME: str = "/app/.cache/huggingface"
+    MAX_UPLOAD_SIZE_BYTES: int = 1024 * 1024  # 1 MB
 
     # Logging
 
