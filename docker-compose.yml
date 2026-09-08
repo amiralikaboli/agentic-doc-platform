@@ -56,7 +56,7 @@ services:
 #      args:
 #        SERVICE: retrieval
 #        TORCH_VARIANT: cpu
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval-cpu:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval:${IMAGE_TAG:-latest}
     container_name: retrieval
     ports:
       - "${GRPC_PORT}:50051"
@@ -104,7 +104,7 @@ services:
 #      args:
 #        SERVICE: worker
 #        TORCH_VARIANT: cpu
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker-cpu:${IMAGE_TAG:-latest}
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker:${IMAGE_TAG:-latest}
     container_name: worker
     restart: always
     volumes:

@@ -1,8 +1,7 @@
 ARG SERVICE=api
-ARG BASE_IMAGE=python:3.12-slim
 ARG TORCH_VARIANT=none
 
-FROM ${BASE_IMAGE}
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -11,13 +10,6 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential libpq-dev && \
     rm -rf /var/lib/apt/lists/*
-
-# nvidia/cuda runtime images have no Python — install it if missing
-RUN if ! command -v pip >/dev/null 2>&1; then \
-        apt-get update && \
-        apt-get install -y --no-install-recommends python3.12 python3-pip && \
-        rm -rf /var/lib/apt/lists/*; \
-    fi
 
 WORKDIR /app
 COPY pyproject.toml .
