@@ -38,7 +38,31 @@ class VLLMClient(BaseLLMClient):
             api_key=settings.LLM_API_KEY,
             timeout=settings.LLM_REQUEST_TIMEOUT,
         )
-        self._model = settings.LLM_MODEL_NAME
+        self._model = self._fetch_model_name()
+
+    def _fetch_model_name(self) -> str:
+        try:
+            models = self.client.models.list()
+            if not models.data:
+                raise ExternalServiceError(
+                    "LLM Service",
+                    "No models available in /v1/models endpoint"
+                )
+            model_name = models.data[0].id
+            logger.info(f"Fetched LLM model: {model_name}")
+            return model_name
+        except APIError as e:
+            logger.error(f"Failed to fetch models from /v1/models: {e}")
+            raise ExternalServiceError(
+                "LLM Service",
+                f"Could not fetch available models: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error fetching models: {e}")
+            raise ExternalServiceError(
+                "LLM Service",
+                f"Unexpected error fetching models: {str(e)}"
+            )
 
     def generate(
             self,
