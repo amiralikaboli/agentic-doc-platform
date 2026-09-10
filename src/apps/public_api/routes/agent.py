@@ -1,0 +1,56 @@
+import logging
+
+from fastapi import APIRouter
+from starlette.concurrency import run_in_threadpool
+
+from src.apps.public_api.schemas.agent import (
+    AgentChatRequest,
+    AgentChatResponse,
+    AgentSourceOut,
+    AgentStepOut,
+)
+from src.core.errors import InternalServerError, ValidationError
+from src.services.agent.agent import AgentService
+
+logger = logging.getLogger(__name__)
+router = APIRouter(tags=["Agent"])
+
+agent_service = AgentService()
+
+
+@router.post("/agent/chat", response_model=AgentChatResponse)
+async def agent_chat(payload: AgentChatRequest) -> AgentChatResponse:
+    if not payload.message or not payload.message.strip():
+        raise ValidationError("message cannot be empty")
+
+    try:
+        result = await run_in_threadpool(agent_service.chat, payload.message, payload.top_k)
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    except Exception as e:
+        logger.error(f"Unexpected error in agent chat: {e}")
+        raise InternalServerError("Agent failed to produce a response") from e
+
+    return AgentChatResponse(
+        answer=result.answer,
+        used_retrieval=result.used_retrieval,
+        steps=[
+            AgentStepOut(
+                tool_name=step.tool_name,
+                tool_input=step.tool_input,
+                succeeded=step.succeeded,
+                detail=step.detail,
+            )
+            for step in result.steps
+        ],
+        sources=[
+            AgentSourceOut(
+                id=chunk.id,
+                document_id=chunk.document_id,
+                content=chunk.content,
+                chunk_index=chunk.chunk_index,
+                score=chunk.score,
+            )
+            for chunk in result.sources
+        ],
+    )

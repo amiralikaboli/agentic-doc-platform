@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from src.apps.public_api.routes import documents, query
+from src.apps.public_api.routes import agent, documents, query
 from src.apps.worker.queue import CeleryQueue
 from src.core.config import settings
 from src.core.errors import DomainException, domain_exception_handler
@@ -56,6 +56,7 @@ app.add_exception_handler(DomainException, domain_exception_handler)
 # Routes
 app.include_router(documents.router, prefix="/v1")
 app.include_router(query.router, prefix="/v1")
+app.include_router(agent.router, prefix="/v1")
 
 
 @app.get("/health")
