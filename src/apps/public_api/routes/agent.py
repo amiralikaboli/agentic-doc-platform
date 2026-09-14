@@ -3,12 +3,7 @@ import logging
 from fastapi import APIRouter
 from starlette.concurrency import run_in_threadpool
 
-from src.apps.public_api.schemas.agent import (
-    AgentChatRequest,
-    AgentChatResponse,
-    AgentSourceOut,
-    AgentStepOut,
-)
+from src.apps.public_api.schemas.agent import AgentChatRequest, AgentChatResponse, AgentSourceOut, AgentStepOut
 from src.core.errors import InternalServerError, ValidationError
 from src.services.agent.agent import AgentService
 
@@ -34,23 +29,7 @@ async def agent_chat(payload: AgentChatRequest) -> AgentChatResponse:
     return AgentChatResponse(
         answer=result.answer,
         used_retrieval=result.used_retrieval,
-        steps=[
-            AgentStepOut(
-                tool_name=step.tool_name,
-                tool_input=step.tool_input,
-                succeeded=step.succeeded,
-                detail=step.detail,
-            )
-            for step in result.steps
-        ],
-        sources=[
-            AgentSourceOut(
-                id=chunk.id,
-                document_id=chunk.document_id,
-                content=chunk.content,
-                chunk_index=chunk.chunk_index,
-                score=chunk.score,
-            )
-            for chunk in result.sources
-        ],
+        routing_failed=result.routing_failed,
+        steps=[AgentStepOut.model_validate(step, from_attributes=True) for step in result.steps],
+        sources=[AgentSourceOut.model_validate(chunk, from_attributes=True) for chunk in result.sources],
     )

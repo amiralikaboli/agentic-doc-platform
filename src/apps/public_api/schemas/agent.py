@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, Field
 
 
@@ -25,5 +24,6 @@ class AgentSourceOut(BaseModel):
 class AgentChatResponse(BaseModel):
     answer: str
     used_retrieval: bool
+    routing_failed: bool = False
     steps: list[AgentStepOut]
     sources: list[AgentSourceOut]
