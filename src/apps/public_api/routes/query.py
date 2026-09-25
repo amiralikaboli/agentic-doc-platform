@@ -7,12 +7,12 @@ from starlette.concurrency import run_in_threadpool
 from src.apps.public_api.grpc_client import get_retrieval_client
 from src.apps.public_api.schemas.query import QueryRequest, QueryResponse, ChunkResult
 from src.core.errors import ExternalServiceError, ValidationError
-from src.services.llm.service import GenerationService
+from src.services.llm import get_llm_client, build_rag_messages
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Query"])
 
-generation_service = GenerationService()
+llm_client = get_llm_client()
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -43,7 +43,8 @@ async def query(payload: QueryRequest) -> QueryResponse:
 
     try:
         chunk_contents = [retrieved_chunk.content for retrieved_chunk in resp.results]
-        answer = await run_in_threadpool(generation_service.generate, payload.query, chunk_contents)
+        messages = build_rag_messages(payload.query, chunk_contents)
+        answer = await run_in_threadpool(llm_client.generate, messages)
     except ExternalServiceError:
         raise
     except Exception as e:

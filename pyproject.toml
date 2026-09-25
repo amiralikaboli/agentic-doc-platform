@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 # Core: shared by all services
 dependencies = [
     "psycopg2-binary>=2.9",
-    "sqlalchemy>=2.0",
+    "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.27",
     "pgvector>=0.1",
     "grpcio>=1.60",
