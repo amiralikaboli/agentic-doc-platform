@@ -4,7 +4,7 @@ from src.services.llm.client import get_llm_client
 
 SYSTEM_PROMPT = (
     "You are a careful assistant that answers questions using ONLY the context provided below. "
-    "If the context does not contain enough information to answer, say: *I don't have enough information in the provided context.*"
+    "If the context does not contain enough information to answer, say: *I don't have enough information in the provided context.* "
     "When you use a piece of context, cite it inline with its bracketed number, e.g. [1], [2]."
 )
 
