@@ -15,8 +15,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-init = []
+init = [
+    "psycopg[binary]>=3.1",
+]
 api = [
+    "psycopg[binary]>=3.1",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "python-multipart>=0.0",
@@ -26,10 +29,12 @@ api = [
 ]
 # Retrieval service: embedding + reranking
 retrieval = [
+    "psycopg[binary]>=3.1",
     "sentence-transformers>=5.0",
 ]
 # Worker service: Celery tasks + semantic chunking
 worker = [
+    "psycopg[binary]>=3.1",
     "celery>=5.3",
     "redis>=6.0",
     "numpy>=1.24",

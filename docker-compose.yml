@@ -21,11 +21,11 @@ services:
 
   # 1b. Database initializer (creates DB, extension, and tables)
   init:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#      args:
-#        SERVICE: init
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: init
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/init:${IMAGE_TAG:-latest}
     container_name: init
     env_file: .env
@@ -50,12 +50,12 @@ services:
 
   # 3. gRPC Retrieval Service — cold-start initializes models
   retrieval:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#      args:
-#        SERVICE: retrieval
-#        TORCH_VARIANT: cpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: retrieval
+        TORCH_VARIANT: cpu
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/retrieval:${IMAGE_TAG:-latest}
     container_name: retrieval
     ports:
@@ -75,11 +75,11 @@ services:
 
   # 4. FastAPI Public API
   api:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#      args:
-#        SERVICE: api
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: api
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/api:${IMAGE_TAG:-latest}
     container_name: api
     ports:
@@ -98,12 +98,12 @@ services:
 
   # 5. Celery Worker — cold-start initializes models for tasks
   worker:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#      args:
-#        SERVICE: worker
-#        TORCH_VARIANT: cpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE: worker
+        TORCH_VARIANT: cpu
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-amiralikaboli/agentic-doc-platform}/worker:${IMAGE_TAG:-latest}
     container_name: worker
     restart: always
